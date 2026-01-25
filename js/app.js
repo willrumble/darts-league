@@ -7,7 +7,7 @@
   const EDITED_MATCHES_KEY = 'dartsLeague_editedMatches';
   const DELETED_MATCHES_KEY = 'dartsLeague_deletedMatchIds';
   const DATA_VERSION_KEY = 'dartsLeague_dataVersion';
-  const CURRENT_DATA_VERSION = 2; // Increment this when data needs to be reset
+  const CURRENT_DATA_VERSION = 3; // Increment this when data needs to be reset
   
   let playersData = [];
   let seedMatches = [];

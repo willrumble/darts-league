@@ -1053,6 +1053,86 @@
     showFormMessage(`Match updated: ${p1Name} ${formData.player1Legs} - ${formData.player2Legs} ${p2Name}`);
   }
 
+  // ===== CSV EXPORT =====
+
+  // Export match history to CSV
+  function exportToCSV() {
+    if (allMatches.length === 0) {
+      alert('No matches to export!');
+      return;
+    }
+
+    // CSV header
+    const headers = [
+      'Date',
+      'Player 1',
+      'Player 2',
+      'P1 Legs',
+      'P2 Legs',
+      'P1 High Checkout',
+      'P2 High Checkout',
+      'P1 High Visit',
+      'P2 High Visit',
+      'Winner'
+    ];
+
+    // Build CSV rows
+    const rows = allMatches.map(match => {
+      const p1Name = getPlayerName(match.player1Id);
+      const p2Name = getPlayerName(match.player2Id);
+      const winner = match.player1Legs === 3 ? p1Name : p2Name;
+      
+      return [
+        match.date,
+        p1Name,
+        p2Name,
+        match.player1Legs,
+        match.player2Legs,
+        match.player1HighCheckout || '',
+        match.player2HighCheckout || '',
+        match.player1HighVisit || '',
+        match.player2HighVisit || '',
+        winner
+      ];
+    });
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => {
+        // Escape cells that contain commas or quotes
+        const cellStr = String(cell);
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(','))
+    ].join('\n');
+
+    // Create Blob and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `darts-league-matches-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.display = 'none';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    URL.revokeObjectURL(url);
+  }
+
+  // Initialize export button
+  function initExportButton() {
+    const exportBtn = document.getElementById('export-csv-btn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', exportToCSV);
+    }
+  }
+
   // ===== FIXTURES LOGIC =====
 
   // Generate all possible match pairs for round robin
@@ -1295,6 +1375,9 @@
       
       // Initialize the match form
       initForm();
+      
+      // Initialize export button
+      initExportButton();
     } catch (error) {
       console.error('Failed to load data:', error);
       tbody.innerHTML = `

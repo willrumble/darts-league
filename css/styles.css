@@ -223,14 +223,19 @@ tbody tr:hover {
 
   /* Allow horizontal scroll instead of hiding columns */
   .hide-mobile {
-    display: table-cell;
+    display: table-cell !important;
   }
   
   .table-container {
-    overflow-x: auto;
+    overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     margin: 0 -1rem;
     padding: 0 1rem;
+    max-width: 100vw;
+  }
+  
+  table {
+    min-width: 600px;
   }
 
   .legend {

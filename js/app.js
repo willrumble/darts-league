@@ -1130,58 +1130,54 @@
   function generateFixtureSchedule(players, matches) {
     const schedule = [];
     
+    // Calculate current round number (6 matches per round, 2 per week = 3 weeks per round)
+    // Weeks completed = matches / 2, rounds completed = floor(weeks / 3)
+    const weeksCompleted = Math.floor(matches.length / 2);
+    const currentRoundNumber = Math.floor(weeksCompleted / 3) + 1;
+    const weekInRound = (weeksCompleted % 3) + 1; // 1, 2, or 3
+    
     // Get remaining matches in current round
     const remainingCurrent = getRemainingCurrentRound(players, matches);
     
-    // This week - remaining current round matches
+    // Current round remaining matches
     if (remainingCurrent.length > 0) {
       schedule.push({
-        title: 'This Week',
-        date: '26 Jan',
+        title: `Round ${currentRoundNumber} - Week ${weekInRound}`,
         badge: 'current',
         matches: remainingCurrent.slice(0, 2)
       });
       
-      // If more than 2 remaining in current round, add them to next week
+      // If more than 2 remaining in current round, add them
       if (remainingCurrent.length > 2) {
         schedule.push({
-          title: 'Week of 2 Feb',
-          date: '2 Feb',
+          title: `Round ${currentRoundNumber} - Week ${weekInRound + 1}`,
           badge: null,
           matches: remainingCurrent.slice(2, 4)
+        });
+      }
+      
+      if (remainingCurrent.length > 4) {
+        schedule.push({
+          title: `Round ${currentRoundNumber} - Week ${weekInRound + 2}`,
+          badge: null,
+          matches: remainingCurrent.slice(4, 6)
         });
       }
     }
     
     // Next round - generate full round robin
     const allPairs = generateRoundRobinPairs(players);
-    
-    // Determine when next round starts based on remaining current
-    let nextRoundWeeks;
-    if (remainingCurrent.length <= 2) {
-      nextRoundWeeks = [
-        { title: 'Week of 2 Feb', date: '2 Feb' },
-        { title: 'Week of 9 Feb', date: '9 Feb' },
-        { title: 'Week of 16 Feb', date: '16 Feb' }
-      ];
-    } else {
-      nextRoundWeeks = [
-        { title: 'Week of 9 Feb', date: '9 Feb' },
-        { title: 'Week of 16 Feb', date: '16 Feb' },
-        { title: 'Week of 23 Feb', date: '23 Feb' }
-      ];
-    }
+    const nextRoundNumber = currentRoundNumber + 1;
     
     // Add round divider
-    schedule.push({ type: 'divider', label: 'Next Round' });
+    schedule.push({ type: 'divider', label: `Round ${nextRoundNumber}` });
     
     // Distribute matches across 3 weeks (2 per week)
     for (let i = 0; i < 3; i++) {
       const weekMatches = allPairs.slice(i * 2, i * 2 + 2);
       if (weekMatches.length > 0) {
         schedule.push({
-          title: nextRoundWeeks[i].title,
-          date: nextRoundWeeks[i].date,
+          title: `Round ${nextRoundNumber} - Week ${i + 1}`,
           badge: 'next-round',
           matches: weekMatches
         });
@@ -1223,7 +1219,7 @@
         <div class="fixtures-week">
           <div class="fixtures-week-header">
             <span class="fixtures-week-title">${item.title}</span>
-            ${item.badge ? `<span class="fixtures-week-badge ${item.badge}">${item.badge === 'current' ? 'Current Round' : 'Round 2'}</span>` : ''}
+            ${item.badge === 'current' ? '<span class="fixtures-week-badge current">Up Next</span>' : ''}
           </div>
       `;
       

@@ -77,6 +77,15 @@
             content.classList.add('active');
           }
         });
+        
+        // Re-render chart when Stats tab becomes visible
+        // (Chart.js needs visible canvas to calculate dimensions properly)
+        if (targetTab === 'stats' && playersData.length > 0) {
+          // Small delay to ensure DOM is updated
+          setTimeout(() => {
+            renderPositionChart(playersData);
+          }, 50);
+        }
       });
     });
   }
@@ -307,15 +316,49 @@
 
   // Render position chart
   function renderPositionChart(players) {
-    const ctx = document.getElementById('position-chart');
-    if (!ctx) return;
+    const canvas = document.getElementById('position-chart');
+    if (!canvas) {
+      console.warn('Position chart canvas not found');
+      return;
+    }
+    
+    // Get or create empty state element
+    const chartContainer = canvas.parentElement;
+    let emptyState = chartContainer.querySelector('.chart-empty-state');
+    if (!emptyState) {
+      emptyState = document.createElement('p');
+      emptyState.className = 'empty-state chart-empty-state';
+      emptyState.textContent = 'No matches played yet';
+      chartContainer.appendChild(emptyState);
+    }
+    
+    // Check if we have valid data
+    if (!players || players.length === 0) {
+      console.warn('No players data for position chart');
+      canvas.style.display = 'none';
+      emptyState.style.display = 'block';
+      return;
+    }
+    
+    if (!allMatches || allMatches.length === 0) {
+      console.warn('No matches data for position chart');
+      canvas.style.display = 'none';
+      emptyState.style.display = 'block';
+      return;
+    }
     
     const { weeks, positions } = calculatePositionHistory(players, allMatches);
     
-    if (weeks.length === 0) {
-      ctx.parentElement.innerHTML = '<p class="empty-state">No matches played yet</p>';
+    if (!weeks || weeks.length === 0) {
+      console.warn('No weeks data for position chart');
+      canvas.style.display = 'none';
+      emptyState.style.display = 'block';
       return;
     }
+    
+    // Show canvas, hide empty state
+    canvas.style.display = 'block';
+    emptyState.style.display = 'none';
     
     // Get current theme
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -324,7 +367,7 @@
     
     const datasets = players.map(player => ({
       label: player.name,
-      data: positions[player.id],
+      data: positions[player.id] || [],
       borderColor: PLAYER_COLORS[player.id]?.border || '#888',
       backgroundColor: PLAYER_COLORS[player.id]?.bg || '#888',
       borderWidth: 3,
@@ -336,64 +379,69 @@
     // Destroy existing chart if it exists
     if (positionChart) {
       positionChart.destroy();
+      positionChart = null;
     }
     
-    positionChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: weeks,
-        datasets
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: {
-            reverse: true,  // Position 1 at top
-            min: 1,
-            max: 4,
-            ticks: {
-              stepSize: 1,
-              callback: function(value) {
-                const positions = ['', '1st', '2nd', '3rd', '4th'];
-                return positions[value] || value;
-              },
-              color: textColor
-            },
-            grid: {
-              color: gridColor
-            }
-          },
-          x: {
-            ticks: {
-              color: textColor
-            },
-            grid: {
-              color: gridColor
-            }
-          }
+    try {
+      positionChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: weeks,
+          datasets
         },
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              color: textColor,
-              usePointStyle: true,
-              padding: 20
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              reverse: true,  // Position 1 at top
+              min: 1,
+              max: 4,
+              ticks: {
+                stepSize: 1,
+                callback: function(value) {
+                  const positions = ['', '1st', '2nd', '3rd', '4th'];
+                  return positions[value] || value;
+                },
+                color: textColor
+              },
+              grid: {
+                color: gridColor
+              }
+            },
+            x: {
+              ticks: {
+                color: textColor
+              },
+              grid: {
+                color: gridColor
+              }
             }
           },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                const pos = context.raw;
-                const suffix = pos === 1 ? 'st' : pos === 2 ? 'nd' : pos === 3 ? 'rd' : 'th';
-                return `${context.dataset.label}: ${pos}${suffix}`;
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: textColor,
+                usePointStyle: true,
+                padding: 20
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const pos = context.raw;
+                  const suffix = pos === 1 ? 'st' : pos === 2 ? 'nd' : pos === 3 ? 'rd' : 'th';
+                  return `${context.dataset.label}: ${pos}${suffix}`;
+                }
               }
             }
           }
         }
-      }
-    });
+      });
+    } catch (error) {
+      console.error('Failed to create position chart:', error);
+    }
   }
 
   // Render head-to-head records
@@ -696,6 +744,13 @@
         content.classList.add('active');
       }
     });
+    
+    // Re-render chart when Stats tab becomes visible
+    if (tabName === 'stats' && playersData.length > 0) {
+      setTimeout(() => {
+        renderPositionChart(playersData);
+      }, 50);
+    }
   }
 
   // Handle edit button click

@@ -49,6 +49,11 @@
       const next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('theme', next);
+      
+      // Re-render chart with new theme colors
+      if (playersData.length > 0) {
+        renderPositionChart(playersData);
+      }
     });
   }
 
@@ -180,6 +185,250 @@
     allMatches.sort((a, b) => new Date(b.date) - new Date(a.date));
   }
 
+  // Calculate player form (last 3 results)
+  function calculateForm(playerId, matches) {
+    // Get matches for this player, sorted by date (newest first)
+    const playerMatches = matches
+      .filter(m => m.player1Id === playerId || m.player2Id === playerId)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 3);
+    
+    // Build form array (oldest to newest for display, most recent on right)
+    const form = playerMatches.reverse().map(match => {
+      const isPlayer1 = match.player1Id === playerId;
+      const playerLegs = isPlayer1 ? match.player1Legs : match.player2Legs;
+      return playerLegs === 3 ? 'W' : 'L';
+    });
+    
+    // Pad with empty slots if less than 3 matches
+    while (form.length < 3) {
+      form.unshift('-');
+    }
+    
+    return form;
+  }
+
+  // Calculate historical positions for the chart
+  function calculatePositionHistory(players, matches) {
+    if (matches.length === 0) return { weeks: [], positions: {} };
+    
+    // Sort matches by date
+    const sortedMatches = [...matches].sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // Group matches by week (date)
+    const weekGroups = {};
+    sortedMatches.forEach(match => {
+      const weekKey = match.date;
+      if (!weekGroups[weekKey]) {
+        weekGroups[weekKey] = [];
+      }
+      weekGroups[weekKey].push(match);
+    });
+    
+    const weeks = Object.keys(weekGroups).sort();
+    const positions = {};
+    
+    // Initialize positions for all players
+    players.forEach(p => {
+      positions[p.id] = [];
+    });
+    
+    // Calculate positions after each week
+    let cumulativeMatches = [];
+    weeks.forEach(week => {
+      cumulativeMatches = [...cumulativeMatches, ...weekGroups[week]];
+      const standings = calculateStandings(players, cumulativeMatches);
+      
+      standings.forEach((player, index) => {
+        positions[player.id].push(index + 1);
+      });
+    });
+    
+    // Format week labels
+    const weekLabels = weeks.map(dateStr => {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    });
+    
+    return { weeks: weekLabels, positions };
+  }
+
+  // Calculate head-to-head records
+  function calculateH2H(players, matches) {
+    const h2h = {};
+    
+    // Initialize H2H for all player pairs
+    for (let i = 0; i < players.length; i++) {
+      for (let j = i + 1; j < players.length; j++) {
+        const key = `${players[i].id}-${players[j].id}`;
+        h2h[key] = {
+          player1: players[i],
+          player2: players[j],
+          p1Wins: 0,
+          p2Wins: 0
+        };
+      }
+    }
+    
+    // Count wins from matches
+    matches.forEach(match => {
+      const p1 = match.player1Id;
+      const p2 = match.player2Id;
+      
+      // Find the key (sorted order)
+      let key = `${p1}-${p2}`;
+      let swapped = false;
+      if (!h2h[key]) {
+        key = `${p2}-${p1}`;
+        swapped = true;
+      }
+      
+      if (!h2h[key]) return;
+      
+      const p1Won = match.player1Legs === 3;
+      
+      if (swapped) {
+        if (p1Won) {
+          h2h[key].p2Wins++;
+        } else {
+          h2h[key].p1Wins++;
+        }
+      } else {
+        if (p1Won) {
+          h2h[key].p1Wins++;
+        } else {
+          h2h[key].p2Wins++;
+        }
+      }
+    });
+    
+    return Object.values(h2h);
+  }
+
+  // Render position chart
+  function renderPositionChart(players) {
+    const ctx = document.getElementById('position-chart');
+    if (!ctx) return;
+    
+    const { weeks, positions } = calculatePositionHistory(players, allMatches);
+    
+    if (weeks.length === 0) {
+      ctx.parentElement.innerHTML = '<p class="empty-state">No matches played yet</p>';
+      return;
+    }
+    
+    // Get current theme
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    const textColor = isDark ? '#a0a0a0' : '#6c757d';
+    
+    const datasets = players.map(player => ({
+      label: player.name,
+      data: positions[player.id],
+      borderColor: PLAYER_COLORS[player.id]?.border || '#888',
+      backgroundColor: PLAYER_COLORS[player.id]?.bg || '#888',
+      borderWidth: 3,
+      tension: 0.1,
+      pointRadius: 6,
+      pointHoverRadius: 8
+    }));
+    
+    // Destroy existing chart if it exists
+    if (positionChart) {
+      positionChart.destroy();
+    }
+    
+    positionChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: weeks,
+        datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            reverse: true,  // Position 1 at top
+            min: 1,
+            max: 4,
+            ticks: {
+              stepSize: 1,
+              callback: function(value) {
+                const positions = ['', '1st', '2nd', '3rd', '4th'];
+                return positions[value] || value;
+              },
+              color: textColor
+            },
+            grid: {
+              color: gridColor
+            }
+          },
+          x: {
+            ticks: {
+              color: textColor
+            },
+            grid: {
+              color: gridColor
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: textColor,
+              usePointStyle: true,
+              padding: 20
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const pos = context.raw;
+                const suffix = pos === 1 ? 'st' : pos === 2 ? 'nd' : pos === 3 ? 'rd' : 'th';
+                return `${context.dataset.label}: ${pos}${suffix}`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Render head-to-head records
+  function renderH2H(players) {
+    const container = document.getElementById('h2h-grid');
+    if (!container) return;
+    
+    const h2hData = calculateH2H(players, allMatches);
+    
+    if (allMatches.length === 0) {
+      container.innerHTML = '<p class="empty-state">No matches played yet</p>';
+      return;
+    }
+    
+    container.innerHTML = h2hData.map(record => {
+      const total = record.p1Wins + record.p2Wins;
+      let recordClass = 'even';
+      if (record.p1Wins > record.p2Wins) recordClass = 'p1-leads';
+      else if (record.p2Wins > record.p1Wins) recordClass = 'p2-leads';
+      
+      return `
+        <div class="h2h-item">
+          <span class="h2h-players">${record.player1.name} vs ${record.player2.name}</span>
+          <span class="h2h-record ${recordClass}">${record.p1Wins} - ${record.p2Wins}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Render stats section
+  function renderStats() {
+    renderPositionChart(playersData);
+    renderH2H(playersData);
+  }
+
   // Calculate standings from matches
   function calculateStandings(players, matches) {
     // Initialize stats for each player
@@ -307,7 +556,7 @@
     if (standings.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="10" class="empty-state">
+          <td colspan="11" class="empty-state">
             <p>No matches played yet</p>
           </td>
         </tr>
@@ -321,10 +570,18 @@
       const legDiffDisplay = player.legDiff > 0 ? `+${player.legDiff}` : player.legDiff;
       const highCheckout = player.highCheckout || '-';
       
+      // Calculate form for this player
+      const form = calculateForm(player.id, allMatches);
+      const formHtml = form.map(result => {
+        const className = result === 'W' ? 'win' : result === 'L' ? 'loss' : 'none';
+        return `<span class="form-result ${className}">${result}</span>`;
+      }).join('');
+      
       return `
         <tr>
           <td class="col-rank ${rankClass}">${rank}</td>
           <td class="col-player">${player.name}</td>
+          <td class="col-form"><div class="form-indicator">${formHtml}</div></td>
           <td class="col-num">${player.played}</td>
           <td class="col-num">${player.won}</td>
           <td class="col-num">${player.lost}</td>
@@ -416,6 +673,7 @@
     renderStandings(standings);
     renderHistory();
     renderFixtures();
+    renderStats();
   }
 
   // Switch to a specific tab
@@ -963,7 +1221,7 @@
     checkDataVersion();
     
     const tbody = document.querySelector('#standings-table tbody');
-    tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="loading">Loading...</td></tr>';
 
     try {
       const { players, matches } = await loadData();
@@ -977,6 +1235,7 @@
       renderStandings(standings);
       renderHistory();
       renderFixtures();
+      renderStats();
       
       // Initialize the match form
       initForm();
@@ -984,7 +1243,7 @@
       console.error('Failed to load data:', error);
       tbody.innerHTML = `
         <tr>
-          <td colspan="10" class="empty-state">
+          <td colspan="11" class="empty-state">
             <p>Failed to load standings</p>
           </td>
         </tr>

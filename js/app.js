@@ -1239,15 +1239,9 @@
         
         html += `
           <div class="fixture-card">
-            <div class="fixture-player player-left">
-              ${p1Name}
-              ${h2h.total > 0 && h2h.p1Wins > h2h.p2Wins ? '👑' : ''}
-            </div>
+            <div class="fixture-player player-left">${p1Name}</div>
             <div class="fixture-vs">VS</div>
-            <div class="fixture-player player-right">
-              ${h2h.total > 0 && h2h.p2Wins > h2h.p1Wins ? '👑' : ''}
-              ${p2Name}
-            </div>
+            <div class="fixture-player player-right">${p2Name}</div>
           </div>
           ${h2hHtml}
         `;

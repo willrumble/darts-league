@@ -53,6 +53,77 @@
           P=Played, W=Won, L=Lost, Pts=Points, LF=Legs For, LA=Legs Against, LD=Leg Diff, HC=High Checkout
         </p>
       </section>
+
+      <section class="match-form-section">
+        <h2>Add Match Result</h2>
+        <form id="match-form">
+          <div id="form-message" class="form-message" hidden></div>
+          
+          <div class="form-grid">
+            <div class="player-column">
+              <h3>Player 1</h3>
+              <div class="form-group">
+                <label for="player1">Player</label>
+                <select id="player1" name="player1" required>
+                  <option value="">Select player...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="player1Legs">Legs Won</label>
+                <select id="player1Legs" name="player1Legs" required>
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="player1HighCheckout">High Checkout <span class="optional">(optional)</span></label>
+                <input type="number" id="player1HighCheckout" name="player1HighCheckout" min="2" max="170" placeholder="e.g. 120">
+              </div>
+              <div class="form-group">
+                <label for="player1HighVisit">High Visit <span class="optional">(optional)</span></label>
+                <input type="number" id="player1HighVisit" name="player1HighVisit" min="0" max="180" placeholder="e.g. 180">
+              </div>
+            </div>
+
+            <div class="vs-divider">
+              <span>VS</span>
+            </div>
+
+            <div class="player-column">
+              <h3>Player 2</h3>
+              <div class="form-group">
+                <label for="player2">Player</label>
+                <select id="player2" name="player2" required>
+                  <option value="">Select player...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="player2Legs">Legs Won</label>
+                <select id="player2Legs" name="player2Legs" required>
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="player2HighCheckout">High Checkout <span class="optional">(optional)</span></label>
+                <input type="number" id="player2HighCheckout" name="player2HighCheckout" min="2" max="170" placeholder="e.g. 120">
+              </div>
+              <div class="form-group">
+                <label for="player2HighVisit">High Visit <span class="optional">(optional)</span></label>
+                <input type="number" id="player2HighVisit" name="player2HighVisit" min="0" max="180" placeholder="e.g. 180">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-submit">Add Match</button>
+          </div>
+        </form>
+      </section>
     </main>
   </div>
   <script src="js/app.js"></script>

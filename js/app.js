@@ -3,6 +3,10 @@
 (function() {
   'use strict';
 
+  const STORAGE_KEY = 'dartsLeague_matches';
+  let playersData = [];
+  let allMatches = [];
+
   // Theme management
   function initTheme() {
     const toggle = document.getElementById('theme-toggle');
@@ -22,13 +26,33 @@
       fetch('data/matches.json')
     ]);
     
-    const playersData = await playersRes.json();
-    const matchesData = await matchesRes.json();
+    const playersJson = await playersRes.json();
+    const matchesJson = await matchesRes.json();
     
     return {
-      players: playersData.players,
-      matches: matchesData.matches
+      players: playersJson.players,
+      matches: matchesJson.matches
     };
+  }
+
+  // Get matches from localStorage
+  function getStoredMatches() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      console.error('Failed to load stored matches:', e);
+      return [];
+    }
+  }
+
+  // Save matches to localStorage
+  function saveMatchesToStorage(matches) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(matches));
+    } catch (e) {
+      console.error('Failed to save matches:', e);
+    }
   }
 
   // Calculate standings from matches
@@ -158,6 +182,141 @@
     }).join('');
   }
 
+  // Refresh standings display
+  function refreshStandings() {
+    const standings = calculateStandings(playersData, allMatches);
+    renderStandings(standings);
+  }
+
+  // Populate player dropdowns
+  function populatePlayerDropdowns(players) {
+    const player1Select = document.getElementById('player1');
+    const player2Select = document.getElementById('player2');
+    
+    const options = players.map(p => 
+      `<option value="${p.id}">${p.name}</option>`
+    ).join('');
+    
+    player1Select.innerHTML = '<option value="">Select player...</option>' + options;
+    player2Select.innerHTML = '<option value="">Select player...</option>' + options;
+  }
+
+  // Show form message
+  function showFormMessage(message, type = 'success') {
+    const msgEl = document.getElementById('form-message');
+    msgEl.textContent = message;
+    msgEl.className = `form-message ${type}`;
+    msgEl.hidden = false;
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      msgEl.hidden = true;
+    }, 5000);
+  }
+
+  // Validate match form
+  function validateMatchForm(formData) {
+    const errors = [];
+    
+    // Both players must be selected
+    if (!formData.player1Id) {
+      errors.push('Please select Player 1');
+    }
+    if (!formData.player2Id) {
+      errors.push('Please select Player 2');
+    }
+    
+    // Players can't be the same
+    if (formData.player1Id && formData.player2Id && formData.player1Id === formData.player2Id) {
+      errors.push('Players cannot be the same');
+    }
+    
+    // Validate legs
+    const p1Legs = formData.player1Legs;
+    const p2Legs = formData.player2Legs;
+    
+    if (p1Legs < 0 || p1Legs > 3 || p2Legs < 0 || p2Legs > 3) {
+      errors.push('Legs must be between 0 and 3');
+    }
+    
+    // One player must have exactly 3 legs (winner)
+    if (p1Legs !== 3 && p2Legs !== 3) {
+      errors.push('One player must have 3 legs (the winner)');
+    }
+    
+    // Both players can't have 3 legs
+    if (p1Legs === 3 && p2Legs === 3) {
+      errors.push('Only one player can have 3 legs');
+    }
+    
+    return errors;
+  }
+
+  // Handle form submission
+  function handleFormSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    
+    // Build form data
+    const formData = {
+      player1Id: form.player1.value,
+      player2Id: form.player2.value,
+      player1Legs: parseInt(form.player1Legs.value, 10),
+      player2Legs: parseInt(form.player2Legs.value, 10),
+      player1HighCheckout: form.player1HighCheckout.value ? parseInt(form.player1HighCheckout.value, 10) : null,
+      player2HighCheckout: form.player2HighCheckout.value ? parseInt(form.player2HighCheckout.value, 10) : null,
+      player1HighVisit: form.player1HighVisit.value ? parseInt(form.player1HighVisit.value, 10) : null,
+      player2HighVisit: form.player2HighVisit.value ? parseInt(form.player2HighVisit.value, 10) : null
+    };
+    
+    // Validate
+    const errors = validateMatchForm(formData);
+    if (errors.length > 0) {
+      showFormMessage(errors.join('. '), 'error');
+      return;
+    }
+    
+    // Build match object
+    const storedMatches = getStoredMatches();
+    const maxId = Math.max(
+      ...allMatches.map(m => m.id),
+      ...storedMatches.map(m => m.id),
+      0
+    );
+    
+    const match = {
+      id: maxId + 1,
+      date: new Date().toISOString().split('T')[0],
+      ...formData
+    };
+    
+    // Add to stored matches
+    storedMatches.push(match);
+    saveMatchesToStorage(storedMatches);
+    
+    // Update allMatches and refresh display
+    allMatches.push(match);
+    refreshStandings();
+    
+    // Show success message
+    const p1Name = playersData.find(p => p.id === match.player1Id)?.name || match.player1Id;
+    const p2Name = playersData.find(p => p.id === match.player2Id)?.name || match.player2Id;
+    showFormMessage(`Match added: ${p1Name} ${match.player1Legs} - ${match.player2Legs} ${p2Name}`);
+    
+    // Reset form
+    form.reset();
+  }
+
+  // Initialize form
+  function initForm() {
+    const form = document.getElementById('match-form');
+    if (form) {
+      form.addEventListener('submit', handleFormSubmit);
+      populatePlayerDropdowns(playersData);
+    }
+  }
+
   // Initialize app
   async function init() {
     initTheme();
@@ -167,8 +326,17 @@
 
     try {
       const { players, matches } = await loadData();
-      const standings = calculateStandings(players, matches);
+      playersData = players;
+      
+      // Merge seed matches with localStorage matches
+      const storedMatches = getStoredMatches();
+      allMatches = [...matches, ...storedMatches];
+      
+      const standings = calculateStandings(playersData, allMatches);
       renderStandings(standings);
+      
+      // Initialize the match form
+      initForm();
     } catch (error) {
       console.error('Failed to load data:', error);
       tbody.innerHTML = `

@@ -4,8 +4,13 @@
   'use strict';
 
   const STORAGE_KEY = 'dartsLeague_matches';
+  const EDITED_MATCHES_KEY = 'dartsLeague_editedMatches';
+  const DELETED_MATCHES_KEY = 'dartsLeague_deletedMatchIds';
+  
   let playersData = [];
+  let seedMatches = [];
   let allMatches = [];
+  let editingMatchId = null;
 
   // Theme management
   function initTheme() {
@@ -16,6 +21,30 @@
       const next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('theme', next);
+    });
+  }
+
+  // Tab management
+  function initTabs() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetTab = btn.dataset.tab;
+        
+        // Update buttons
+        tabBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Update content
+        tabContents.forEach(content => {
+          content.classList.remove('active');
+          if (content.id === `${targetTab}-section`) {
+            content.classList.add('active');
+          }
+        });
+      });
     });
   }
 
@@ -35,7 +64,7 @@
     };
   }
 
-  // Get matches from localStorage
+  // Get new matches from localStorage (matches added via form)
   function getStoredMatches() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -46,13 +75,81 @@
     }
   }
 
-  // Save matches to localStorage
+  // Save new matches to localStorage
   function saveMatchesToStorage(matches) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(matches));
     } catch (e) {
       console.error('Failed to save matches:', e);
     }
+  }
+
+  // Get edited seed matches from localStorage
+  function getEditedMatches() {
+    try {
+      const stored = localStorage.getItem(EDITED_MATCHES_KEY);
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      console.error('Failed to load edited matches:', e);
+      return {};
+    }
+  }
+
+  // Save edited seed matches to localStorage
+  function saveEditedMatches(edits) {
+    try {
+      localStorage.setItem(EDITED_MATCHES_KEY, JSON.stringify(edits));
+    } catch (e) {
+      console.error('Failed to save edited matches:', e);
+    }
+  }
+
+  // Get deleted seed match IDs from localStorage
+  function getDeletedMatchIds() {
+    try {
+      const stored = localStorage.getItem(DELETED_MATCHES_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      console.error('Failed to load deleted match IDs:', e);
+      return [];
+    }
+  }
+
+  // Save deleted seed match IDs to localStorage
+  function saveDeletedMatchIds(ids) {
+    try {
+      localStorage.setItem(DELETED_MATCHES_KEY, JSON.stringify(ids));
+    } catch (e) {
+      console.error('Failed to save deleted match IDs:', e);
+    }
+  }
+
+  // Check if a match is from seed data
+  function isSeedMatch(matchId) {
+    return seedMatches.some(m => m.id === matchId);
+  }
+
+  // Build allMatches from seed + localStorage (with edits and deletions applied)
+  function buildAllMatches() {
+    const storedMatches = getStoredMatches();
+    const editedMatches = getEditedMatches();
+    const deletedIds = getDeletedMatchIds();
+    
+    // Apply edits to seed matches and filter deleted ones
+    const processedSeedMatches = seedMatches
+      .filter(m => !deletedIds.includes(m.id))
+      .map(m => {
+        if (editedMatches[m.id]) {
+          return { ...m, ...editedMatches[m.id] };
+        }
+        return m;
+      });
+    
+    // Combine with stored matches (new matches added via form)
+    allMatches = [...processedSeedMatches, ...storedMatches];
+    
+    // Sort by date (newest first)
+    allMatches.sort((a, b) => new Date(b.date) - new Date(a.date));
   }
 
   // Calculate standings from matches
@@ -144,6 +241,37 @@
     return standings;
   }
 
+  // Calculate points awarded for a match
+  function calculateMatchPoints(match) {
+    let p1Points = 0;
+    let p2Points = 0;
+    
+    // Winner gets 3 points
+    if (match.player1Legs === 3) {
+      p1Points += 3;
+    } else if (match.player2Legs === 3) {
+      p2Points += 3;
+    }
+    
+    // Bonus for 50+ checkout
+    if (match.player1HighCheckout && match.player1HighCheckout >= 50) {
+      p1Points += 1;
+    }
+    if (match.player2HighCheckout && match.player2HighCheckout >= 50) {
+      p2Points += 1;
+    }
+    
+    // Bonus for 150+ visit
+    if (match.player1HighVisit && match.player1HighVisit >= 150) {
+      p1Points += 1;
+    }
+    if (match.player2HighVisit && match.player2HighVisit >= 150) {
+      p2Points += 1;
+    }
+    
+    return { p1Points, p2Points };
+  }
+
   // Render standings table
   function renderStandings(standings) {
     const tbody = document.querySelector('#standings-table tbody');
@@ -182,10 +310,208 @@
     }).join('');
   }
 
-  // Refresh standings display
-  function refreshStandings() {
+  // Get player name by ID
+  function getPlayerName(playerId) {
+    const player = playersData.find(p => p.id === playerId);
+    return player ? player.name : playerId;
+  }
+
+  // Render match history
+  function renderHistory() {
+    const tbody = document.querySelector('#history-table tbody');
+    
+    if (allMatches.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="empty-state">
+            <p>No matches played yet</p>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = allMatches.map(match => {
+      const p1Name = getPlayerName(match.player1Id);
+      const p2Name = getPlayerName(match.player2Id);
+      const p1Won = match.player1Legs === 3;
+      const p2Won = match.player2Legs === 3;
+      const { p1Points, p2Points } = calculateMatchPoints(match);
+      
+      // Build stats string
+      const stats = [];
+      if (match.player1HighCheckout) stats.push(`${p1Name} HC: ${match.player1HighCheckout}`);
+      if (match.player2HighCheckout) stats.push(`${p2Name} HC: ${match.player2HighCheckout}`);
+      if (match.player1HighVisit) stats.push(`${p1Name} HV: ${match.player1HighVisit}`);
+      if (match.player2HighVisit) stats.push(`${p2Name} HV: ${match.player2HighVisit}`);
+      const statsStr = stats.length > 0 ? stats.join(', ') : '-';
+      
+      // Format date
+      const date = new Date(match.date);
+      const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      
+      return `
+        <tr>
+          <td class="col-date">${dateStr}</td>
+          <td class="col-match">
+            <span class="${p1Won ? 'match-winner' : 'match-loser'}">${p1Name}</span>
+            <span class="match-loser"> vs </span>
+            <span class="${p2Won ? 'match-winner' : 'match-loser'}">${p2Name}</span>
+          </td>
+          <td class="col-score">${match.player1Legs} - ${match.player2Legs}</td>
+          <td class="col-stats hide-mobile">${statsStr}</td>
+          <td class="col-pts">
+            <span class="pts-badge">${p1Points}</span> - <span class="pts-badge">${p2Points}</span>
+          </td>
+          <td class="col-actions">
+            <button class="btn-action btn-edit" data-match-id="${match.id}" title="Edit match">✏️</button>
+            <button class="btn-action btn-delete" data-match-id="${match.id}" title="Delete match">🗑️</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Attach event listeners
+    tbody.querySelectorAll('.btn-edit').forEach(btn => {
+      btn.addEventListener('click', () => handleEditClick(parseInt(btn.dataset.matchId)));
+    });
+    
+    tbody.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', () => handleDeleteClick(parseInt(btn.dataset.matchId)));
+    });
+  }
+
+  // Refresh both displays
+  function refreshDisplays() {
+    buildAllMatches();
     const standings = calculateStandings(playersData, allMatches);
     renderStandings(standings);
+    renderHistory();
+  }
+
+  // Handle edit button click
+  function handleEditClick(matchId) {
+    const match = allMatches.find(m => m.id === matchId);
+    if (!match) return;
+    
+    editingMatchId = matchId;
+    
+    // Update form UI
+    document.getElementById('form-title').textContent = 'Edit Match Result';
+    document.getElementById('form-submit-btn').textContent = 'Update Match';
+    document.getElementById('form-cancel-btn').hidden = false;
+    
+    // Populate form with match data
+    const form = document.getElementById('match-form');
+    form.player1.value = match.player1Id;
+    form.player2.value = match.player2Id;
+    form.player1Legs.value = match.player1Legs;
+    form.player2Legs.value = match.player2Legs;
+    form.player1HighCheckout.value = match.player1HighCheckout || '';
+    form.player2HighCheckout.value = match.player2HighCheckout || '';
+    form.player1HighVisit.value = match.player1HighVisit || '';
+    form.player2HighVisit.value = match.player2HighVisit || '';
+    
+    // Scroll to form
+    document.querySelector('.match-form-section').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // Handle cancel edit
+  function handleCancelEdit() {
+    editingMatchId = null;
+    
+    // Reset form UI
+    document.getElementById('form-title').textContent = 'Add Match Result';
+    document.getElementById('form-submit-btn').textContent = 'Add Match';
+    document.getElementById('form-cancel-btn').hidden = true;
+    
+    // Reset form
+    document.getElementById('match-form').reset();
+    
+    // Hide any messages
+    document.getElementById('form-message').hidden = true;
+  }
+
+  // Show confirmation dialog
+  function showConfirmDialog(message, onConfirm) {
+    const dialog = document.createElement('div');
+    dialog.className = 'confirm-dialog';
+    dialog.innerHTML = `
+      <div class="confirm-dialog-content">
+        <h3>Confirm Delete</h3>
+        <p>${message}</p>
+        <div class="confirm-dialog-actions">
+          <button class="btn-dialog-cancel">Cancel</button>
+          <button class="btn-confirm">Delete</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(dialog);
+    
+    dialog.querySelector('.btn-dialog-cancel').addEventListener('click', () => {
+      document.body.removeChild(dialog);
+    });
+    
+    dialog.querySelector('.btn-confirm').addEventListener('click', () => {
+      document.body.removeChild(dialog);
+      onConfirm();
+    });
+    
+    // Close on backdrop click
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) {
+        document.body.removeChild(dialog);
+      }
+    });
+  }
+
+  // Handle delete button click
+  function handleDeleteClick(matchId) {
+    const match = allMatches.find(m => m.id === matchId);
+    if (!match) return;
+    
+    const p1Name = getPlayerName(match.player1Id);
+    const p2Name = getPlayerName(match.player2Id);
+    
+    showConfirmDialog(
+      `Are you sure you want to delete the match between ${p1Name} and ${p2Name} (${match.player1Legs}-${match.player2Legs})?`,
+      () => deleteMatch(matchId)
+    );
+  }
+
+  // Delete a match
+  function deleteMatch(matchId) {
+    if (isSeedMatch(matchId)) {
+      // Add to deleted IDs list
+      const deletedIds = getDeletedMatchIds();
+      if (!deletedIds.includes(matchId)) {
+        deletedIds.push(matchId);
+        saveDeletedMatchIds(deletedIds);
+      }
+      
+      // Also remove any edits for this match
+      const editedMatches = getEditedMatches();
+      if (editedMatches[matchId]) {
+        delete editedMatches[matchId];
+        saveEditedMatches(editedMatches);
+      }
+    } else {
+      // Remove from stored matches
+      const storedMatches = getStoredMatches();
+      const updatedMatches = storedMatches.filter(m => m.id !== matchId);
+      saveMatchesToStorage(updatedMatches);
+    }
+    
+    // If we were editing this match, cancel
+    if (editingMatchId === matchId) {
+      handleCancelEdit();
+    }
+    
+    // Refresh displays
+    refreshDisplays();
+    
+    showFormMessage('Match deleted successfully');
   }
 
   // Populate player dropdowns
@@ -277,13 +603,29 @@
       return;
     }
     
-    // Build match object
+    if (editingMatchId !== null) {
+      // Update existing match
+      updateMatch(editingMatchId, formData);
+    } else {
+      // Add new match
+      addNewMatch(formData);
+    }
+    
+    // Reset form
+    form.reset();
+    handleCancelEdit();
+  }
+
+  // Add a new match
+  function addNewMatch(formData) {
     const storedMatches = getStoredMatches();
-    const maxId = Math.max(
-      ...allMatches.map(m => m.id),
-      ...storedMatches.map(m => m.id),
-      0
-    );
+    
+    // Get max ID across all matches
+    const allIds = [
+      ...seedMatches.map(m => m.id),
+      ...storedMatches.map(m => m.id)
+    ];
+    const maxId = Math.max(...allIds, 0);
     
     const match = {
       id: maxId + 1,
@@ -295,31 +637,63 @@
     storedMatches.push(match);
     saveMatchesToStorage(storedMatches);
     
-    // Update allMatches and refresh display
-    allMatches.push(match);
-    refreshStandings();
+    // Refresh displays
+    refreshDisplays();
     
     // Show success message
-    const p1Name = playersData.find(p => p.id === match.player1Id)?.name || match.player1Id;
-    const p2Name = playersData.find(p => p.id === match.player2Id)?.name || match.player2Id;
+    const p1Name = getPlayerName(match.player1Id);
+    const p2Name = getPlayerName(match.player2Id);
     showFormMessage(`Match added: ${p1Name} ${match.player1Legs} - ${match.player2Legs} ${p2Name}`);
+  }
+
+  // Update an existing match
+  function updateMatch(matchId, formData) {
+    if (isSeedMatch(matchId)) {
+      // Store the edit in localStorage
+      const editedMatches = getEditedMatches();
+      editedMatches[matchId] = formData;
+      saveEditedMatches(editedMatches);
+    } else {
+      // Update in stored matches
+      const storedMatches = getStoredMatches();
+      const matchIndex = storedMatches.findIndex(m => m.id === matchId);
+      if (matchIndex !== -1) {
+        storedMatches[matchIndex] = {
+          ...storedMatches[matchIndex],
+          ...formData
+        };
+        saveMatchesToStorage(storedMatches);
+      }
+    }
     
-    // Reset form
-    form.reset();
+    // Refresh displays
+    refreshDisplays();
+    
+    // Show success message
+    const p1Name = getPlayerName(formData.player1Id);
+    const p2Name = getPlayerName(formData.player2Id);
+    showFormMessage(`Match updated: ${p1Name} ${formData.player1Legs} - ${formData.player2Legs} ${p2Name}`);
   }
 
   // Initialize form
   function initForm() {
     const form = document.getElementById('match-form');
+    const cancelBtn = document.getElementById('form-cancel-btn');
+    
     if (form) {
       form.addEventListener('submit', handleFormSubmit);
       populatePlayerDropdowns(playersData);
+    }
+    
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', handleCancelEdit);
     }
   }
 
   // Initialize app
   async function init() {
     initTheme();
+    initTabs();
     
     const tbody = document.querySelector('#standings-table tbody');
     tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading...</td></tr>';
@@ -327,13 +701,14 @@
     try {
       const { players, matches } = await loadData();
       playersData = players;
+      seedMatches = matches;
       
-      // Merge seed matches with localStorage matches
-      const storedMatches = getStoredMatches();
-      allMatches = [...matches, ...storedMatches];
+      // Build all matches (with edits/deletions applied)
+      buildAllMatches();
       
       const standings = calculateStandings(playersData, allMatches);
       renderStandings(standings);
+      renderHistory();
       
       // Initialize the match form
       initForm();

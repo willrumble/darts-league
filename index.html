@@ -26,8 +26,14 @@
     </header>
     
     <main>
-      <section class="standings">
-        <h2>Standings</h2>
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="standings">Standings</button>
+        <button class="tab-btn" data-tab="history">Match History</button>
+      </nav>
+
+      <section id="standings-section" class="tab-content active">
+        <section class="standings">
+          <h2>Standings</h2>
         <div class="table-container">
           <table id="standings-table">
             <thead>
@@ -49,13 +55,40 @@
             </tbody>
           </table>
         </div>
-        <p class="legend">
-          P=Played, W=Won, L=Lost, Pts=Points, LF=Legs For, LA=Legs Against, LD=Leg Diff, HC=High Checkout
-        </p>
+          <p class="legend">
+            P=Played, W=Won, L=Lost, Pts=Points, LF=Legs For, LA=Legs Against, LD=Leg Diff, HC=High Checkout
+          </p>
+        </section>
+      </section>
+
+      <section id="history-section" class="tab-content">
+        <section class="history">
+          <h2>Match History</h2>
+          <div class="table-container">
+            <table id="history-table">
+              <thead>
+                <tr>
+                  <th class="col-date">Date</th>
+                  <th class="col-match">Match</th>
+                  <th class="col-score">Score</th>
+                  <th class="col-stats hide-mobile">Stats</th>
+                  <th class="col-pts">Pts</th>
+                  <th class="col-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+          <p class="legend">
+            HC=High Checkout, HV=High Visit
+          </p>
+        </section>
       </section>
 
       <section class="match-form-section">
-        <h2>Add Match Result</h2>
+        <h2 id="form-title">Add Match Result</h2>
         <form id="match-form">
           <div id="form-message" class="form-message" hidden></div>
           
@@ -120,7 +153,8 @@
           </div>
 
           <div class="form-actions">
-            <button type="submit" class="btn-submit">Add Match</button>
+            <button type="submit" class="btn-submit" id="form-submit-btn">Add Match</button>
+            <button type="button" class="btn-cancel" id="form-cancel-btn" hidden>Cancel</button>
           </div>
         </form>
       </section>

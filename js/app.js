@@ -6,11 +6,30 @@
   const STORAGE_KEY = 'dartsLeague_matches';
   const EDITED_MATCHES_KEY = 'dartsLeague_editedMatches';
   const DELETED_MATCHES_KEY = 'dartsLeague_deletedMatchIds';
+  const DATA_VERSION_KEY = 'dartsLeague_dataVersion';
+  const CURRENT_DATA_VERSION = 2; // Increment this when data needs to be reset
   
   let playersData = [];
   let seedMatches = [];
   let allMatches = [];
   let editingMatchId = null;
+
+  // Check data version and clear localStorage if outdated
+  function checkDataVersion() {
+    try {
+      const storedVersion = parseInt(localStorage.getItem(DATA_VERSION_KEY), 10);
+      if (!storedVersion || storedVersion < CURRENT_DATA_VERSION) {
+        // Clear all darts league data
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(EDITED_MATCHES_KEY);
+        localStorage.removeItem(DELETED_MATCHES_KEY);
+        localStorage.setItem(DATA_VERSION_KEY, CURRENT_DATA_VERSION.toString());
+        console.log('Data version updated, localStorage cleared');
+      }
+    } catch (e) {
+      console.error('Failed to check data version:', e);
+    }
+  }
 
   // Theme management
   function initTheme() {
@@ -389,6 +408,28 @@
     renderHistory();
   }
 
+  // Switch to a specific tab
+  function switchToTab(tabName) {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    // Update buttons
+    tabBtns.forEach(btn => {
+      btn.classList.remove('active');
+      if (btn.dataset.tab === tabName) {
+        btn.classList.add('active');
+      }
+    });
+    
+    // Update content
+    tabContents.forEach(content => {
+      content.classList.remove('active');
+      if (content.id === `${tabName}-section`) {
+        content.classList.add('active');
+      }
+    });
+  }
+
   // Handle edit button click
   function handleEditClick(matchId) {
     const match = allMatches.find(m => m.id === matchId);
@@ -411,6 +452,9 @@
     form.player2HighCheckout.value = match.player2HighCheckout || '';
     form.player1HighVisit.value = match.player1HighVisit || '';
     form.player2HighVisit.value = match.player2HighVisit || '';
+    
+    // Switch to Add Result tab
+    switchToTab('add-result');
     
     // Scroll to form
     document.querySelector('.match-form-section').scrollIntoView({ behavior: 'smooth' });
@@ -694,6 +738,9 @@
   async function init() {
     initTheme();
     initTabs();
+    
+    // Check data version and clear old localStorage if needed
+    checkDataVersion();
     
     const tbody = document.querySelector('#standings-table tbody');
     tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading...</td></tr>';

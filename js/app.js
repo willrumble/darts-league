@@ -13,6 +13,15 @@
   let seedMatches = [];
   let allMatches = [];
   let editingMatchId = null;
+  let positionChart = null;
+  
+  // Player colors for chart
+  const PLAYER_COLORS = {
+    'will': { bg: 'rgba(59, 130, 246, 0.8)', border: 'rgb(59, 130, 246)' },     // Blue
+    'cal': { bg: 'rgba(34, 197, 94, 0.8)', border: 'rgb(34, 197, 94)' },        // Green
+    'tom': { bg: 'rgba(249, 115, 22, 0.8)', border: 'rgb(249, 115, 22)' },      // Orange
+    'alex': { bg: 'rgba(168, 85, 247, 0.8)', border: 'rgb(168, 85, 247)' }      // Purple
+  };
 
   // Check data version and clear localStorage if outdated
   function checkDataVersion() {
@@ -400,12 +409,13 @@
     });
   }
 
-  // Refresh both displays
+  // Refresh all displays
   function refreshDisplays() {
     buildAllMatches();
     const standings = calculateStandings(playersData, allMatches);
     renderStandings(standings);
     renderHistory();
+    renderFixtures();
   }
 
   // Switch to a specific tab
@@ -719,6 +729,216 @@
     showFormMessage(`Match updated: ${p1Name} ${formData.player1Legs} - ${formData.player2Legs} ${p2Name}`);
   }
 
+  // ===== FIXTURES LOGIC =====
+
+  // Generate all possible match pairs for round robin
+  function generateRoundRobinPairs(players) {
+    const pairs = [];
+    for (let i = 0; i < players.length; i++) {
+      for (let j = i + 1; j < players.length; j++) {
+        pairs.push([players[i].id, players[j].id]);
+      }
+    }
+    return pairs;
+  }
+
+  // Check if a match between two players exists in matches array
+  function matchExists(matches, player1Id, player2Id) {
+    return matches.some(m => 
+      (m.player1Id === player1Id && m.player2Id === player2Id) ||
+      (m.player1Id === player2Id && m.player2Id === player1Id)
+    );
+  }
+
+  // Get head-to-head record between two players
+  function getHeadToHead(matches, player1Id, player2Id) {
+    let p1Wins = 0;
+    let p2Wins = 0;
+    
+    matches.forEach(m => {
+      if ((m.player1Id === player1Id && m.player2Id === player2Id)) {
+        if (m.player1Legs === 3) p1Wins++;
+        else if (m.player2Legs === 3) p2Wins++;
+      } else if ((m.player1Id === player2Id && m.player2Id === player1Id)) {
+        if (m.player1Legs === 3) p2Wins++;
+        else if (m.player2Legs === 3) p1Wins++;
+      }
+    });
+    
+    return { p1Wins, p2Wins, total: p1Wins + p2Wins };
+  }
+
+  // Get remaining matches in current round
+  function getRemainingCurrentRound(players, matches) {
+    const allPairs = generateRoundRobinPairs(players);
+    const remaining = [];
+    
+    // Count how many matches each pair has played
+    const pairCounts = {};
+    allPairs.forEach(([p1, p2]) => {
+      const key = [p1, p2].sort().join('-');
+      pairCounts[key] = 0;
+    });
+    
+    // Count completed matches for each pair
+    matches.forEach(m => {
+      const key = [m.player1Id, m.player2Id].sort().join('-');
+      if (pairCounts[key] !== undefined) {
+        pairCounts[key]++;
+      }
+    });
+    
+    // Find the minimum matches played (current round number - 1)
+    const minMatches = Math.min(...Object.values(pairCounts));
+    
+    // Find pairs that haven't played in current round yet
+    allPairs.forEach(([p1, p2]) => {
+      const key = [p1, p2].sort().join('-');
+      if (pairCounts[key] === minMatches) {
+        remaining.push([p1, p2]);
+      }
+    });
+    
+    return remaining;
+  }
+
+  // Generate fixture schedule
+  function generateFixtureSchedule(players, matches) {
+    const schedule = [];
+    
+    // Get remaining matches in current round
+    const remainingCurrent = getRemainingCurrentRound(players, matches);
+    
+    // This week - remaining current round matches
+    if (remainingCurrent.length > 0) {
+      schedule.push({
+        title: 'This Week',
+        date: '26 Jan',
+        badge: 'current',
+        matches: remainingCurrent.slice(0, 2)
+      });
+      
+      // If more than 2 remaining in current round, add them to next week
+      if (remainingCurrent.length > 2) {
+        schedule.push({
+          title: 'Week of 2 Feb',
+          date: '2 Feb',
+          badge: null,
+          matches: remainingCurrent.slice(2, 4)
+        });
+      }
+    }
+    
+    // Next round - generate full round robin
+    const allPairs = generateRoundRobinPairs(players);
+    
+    // Determine when next round starts based on remaining current
+    let nextRoundWeeks;
+    if (remainingCurrent.length <= 2) {
+      nextRoundWeeks = [
+        { title: 'Week of 2 Feb', date: '2 Feb' },
+        { title: 'Week of 9 Feb', date: '9 Feb' },
+        { title: 'Week of 16 Feb', date: '16 Feb' }
+      ];
+    } else {
+      nextRoundWeeks = [
+        { title: 'Week of 9 Feb', date: '9 Feb' },
+        { title: 'Week of 16 Feb', date: '16 Feb' },
+        { title: 'Week of 23 Feb', date: '23 Feb' }
+      ];
+    }
+    
+    // Add round divider
+    schedule.push({ type: 'divider', label: 'Next Round' });
+    
+    // Distribute matches across 3 weeks (2 per week)
+    for (let i = 0; i < 3; i++) {
+      const weekMatches = allPairs.slice(i * 2, i * 2 + 2);
+      if (weekMatches.length > 0) {
+        schedule.push({
+          title: nextRoundWeeks[i].title,
+          date: nextRoundWeeks[i].date,
+          badge: 'next-round',
+          matches: weekMatches
+        });
+      }
+    }
+    
+    return schedule;
+  }
+
+  // Render fixtures
+  function renderFixtures() {
+    const container = document.getElementById('fixtures-container');
+    if (!container) return;
+    
+    const schedule = generateFixtureSchedule(playersData, allMatches);
+    
+    if (schedule.length === 0) {
+      container.innerHTML = `
+        <div class="fixtures-empty">
+          <p>No upcoming fixtures</p>
+        </div>
+      `;
+      return;
+    }
+    
+    let html = '';
+    
+    schedule.forEach(item => {
+      if (item.type === 'divider') {
+        html += `
+          <div class="fixtures-round-divider">
+            <span class="fixtures-round-label">${item.label}</span>
+          </div>
+        `;
+        return;
+      }
+      
+      html += `
+        <div class="fixtures-week">
+          <div class="fixtures-week-header">
+            <span class="fixtures-week-title">${item.title}</span>
+            ${item.badge ? `<span class="fixtures-week-badge ${item.badge}">${item.badge === 'current' ? 'Current Round' : 'Round 2'}</span>` : ''}
+          </div>
+      `;
+      
+      item.matches.forEach(([p1Id, p2Id]) => {
+        const p1Name = getPlayerName(p1Id);
+        const p2Name = getPlayerName(p2Id);
+        const h2h = getHeadToHead(allMatches, p1Id, p2Id);
+        
+        let h2hHtml = '';
+        if (h2h.total > 0) {
+          h2hHtml = `
+            <div class="fixture-h2h">
+              H2H: <span class="fixture-h2h-record">${p1Name} ${h2h.p1Wins} - ${h2h.p2Wins} ${p2Name}</span>
+            </div>
+          `;
+        }
+        
+        html += `
+          <div class="fixture-card">
+            <div class="fixture-player player-left">
+              ${p1Name}
+              ${h2h.total > 0 && h2h.p1Wins > h2h.p2Wins ? '👑' : ''}
+            </div>
+            <div class="fixture-vs">VS</div>
+            <div class="fixture-player player-right">
+              ${h2h.total > 0 && h2h.p2Wins > h2h.p1Wins ? '👑' : ''}
+              ${p2Name}
+            </div>
+          </div>
+          ${h2hHtml}
+        `;
+      });
+      
+      html += '</div>';
+    });
+    
+    container.innerHTML = html;
+  }
+
   // Initialize form
   function initForm() {
     const form = document.getElementById('match-form');
@@ -756,6 +976,7 @@
       const standings = calculateStandings(playersData, allMatches);
       renderStandings(standings);
       renderHistory();
+      renderFixtures();
       
       // Initialize the match form
       initForm();

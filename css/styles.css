@@ -628,6 +628,263 @@ tbody tr:hover {
   color: var(--text-primary);
 }
 
+/* Fixtures Section */
+.fixtures {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px var(--shadow);
+  transition: background-color var(--transition), box-shadow var(--transition);
+}
+
+.fixtures-week {
+  margin-bottom: 1.5rem;
+}
+
+.fixtures-week:last-child {
+  margin-bottom: 0;
+}
+
+.fixtures-week-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.fixtures-week-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fixtures-week-badge {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.fixtures-week-badge.current {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.fixtures-week-badge.next-round {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.fixture-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  transition: all var(--transition);
+}
+
+.fixture-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.fixture-card:last-child {
+  margin-bottom: 0;
+}
+
+.fixture-player {
+  flex: 1;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.fixture-player.player-left {
+  text-align: right;
+}
+
+.fixture-player.player-right {
+  text-align: left;
+}
+
+.fixture-vs {
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.fixture-h2h {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.fixture-h2h-record {
+  font-weight: 600;
+}
+
+.fixtures-round-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  color: var(--text-secondary);
+}
+
+.fixtures-round-divider::before,
+.fixtures-round-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.fixtures-round-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.fixtures-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+/* Stats Section */
+.stats {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px var(--shadow);
+  transition: background-color var(--transition), box-shadow var(--transition);
+}
+
+.stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.stat-card {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+}
+
+.stat-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+/* Chart Container */
+.chart-container {
+  position: relative;
+  height: 280px;
+  width: 100%;
+}
+
+/* Head to Head Grid */
+.h2h-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.h2h-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  transition: all var(--transition);
+}
+
+.h2h-item:hover {
+  background: var(--bg-hover);
+}
+
+.h2h-players {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.h2h-record {
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.h2h-record.even {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.h2h-record.p1-leads {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.h2h-record.p2-leads {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+/* Form Indicator */
+.col-form {
+  white-space: nowrap;
+}
+
+.form-indicator {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.form-result {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.form-result.win {
+  background: #22c55e;
+  color: white;
+}
+
+.form-result.loss {
+  background: #ef4444;
+  color: white;
+}
+
+.form-result.none {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
 /* Responsive Form */
 @media (max-width: 640px) {
   .match-form-section {
@@ -700,5 +957,63 @@ tbody tr:hover {
   .form-actions {
     display: flex;
     flex-direction: column;
+  }
+
+  /* Fixtures mobile */
+  .fixtures {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+
+  .fixture-card {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .fixture-player {
+    font-size: 0.95rem;
+  }
+
+  .fixtures-week-header {
+    flex-wrap: wrap;
+  }
+
+  /* Stats mobile */
+  .stats {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .chart-container {
+    height: 220px;
+  }
+
+  .h2h-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .h2h-item {
+    padding: 0.625rem 0.75rem;
+  }
+
+  .form-result {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 0.6rem;
+  }
+
+  /* Tabs wrap on mobile for 5 tabs */
+  .tabs {
+    flex-wrap: wrap;
+  }
+
+  .tab-btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
   }
 }

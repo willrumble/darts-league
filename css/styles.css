@@ -221,8 +221,16 @@ tbody tr:hover {
     font-size: 0.85rem;
   }
 
+  /* Allow horizontal scroll instead of hiding columns */
   .hide-mobile {
-    display: none;
+    display: table-cell;
+  }
+  
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -1rem;
+    padding: 0 1rem;
   }
 
   .legend {

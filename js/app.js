@@ -493,6 +493,7 @@
         legsAgainst: 0,
         legDiff: 0,
         highCheckout: 0,
+        highVisit: 0,
         bonusCheckouts: 0,
         bonusVisits: 0
       };
@@ -530,6 +531,14 @@
       }
       if (match.player2HighCheckout && match.player2HighCheckout > p2.highCheckout) {
         p2.highCheckout = match.player2HighCheckout;
+      }
+
+      // High visit tracking
+      if (match.player1HighVisit && match.player1HighVisit > p1.highVisit) {
+        p1.highVisit = match.player1HighVisit;
+      }
+      if (match.player2HighVisit && match.player2HighVisit > p2.highVisit) {
+        p2.highVisit = match.player2HighVisit;
       }
 
       // Bonus points for 50+ checkouts
@@ -604,7 +613,7 @@
     if (standings.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="11" class="empty-state">
+          <td colspan="12" class="empty-state">
             <p>No matches played yet</p>
           </td>
         </tr>
@@ -617,6 +626,7 @@
       const rankClass = rank <= 3 ? `rank-${rank}` : '';
       const legDiffDisplay = player.legDiff > 0 ? `+${player.legDiff}` : player.legDiff;
       const highCheckout = player.highCheckout || '-';
+      const highVisit = player.highVisit || '-';
       
       // Calculate form for this player
       const form = calculateForm(player.id, allMatches);
@@ -638,6 +648,7 @@
           <td class="col-num hide-mobile">${player.legsAgainst}</td>
           <td class="col-num">${legDiffDisplay}</td>
           <td class="col-num hide-mobile">${highCheckout}</td>
+          <td class="col-num hide-mobile">${highVisit}</td>
         </tr>
       `;
     }).join('');
@@ -1276,7 +1287,7 @@
     checkDataVersion();
     
     const tbody = document.querySelector('#standings-table tbody');
-    tbody.innerHTML = '<tr><td colspan="11" class="loading">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="loading">Loading...</td></tr>';
 
     try {
       const { players, matches } = await loadData();
@@ -1298,7 +1309,7 @@
       console.error('Failed to load data:', error);
       tbody.innerHTML = `
         <tr>
-          <td colspan="11" class="empty-state">
+          <td colspan="12" class="empty-state">
             <p>Failed to load standings</p>
           </td>
         </tr>

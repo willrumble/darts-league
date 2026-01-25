@@ -5,11 +5,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Darts League</title>
   <link rel="stylesheet" href="css/styles.css">
+  <script>
+    // Apply theme immediately to prevent flash
+    (function() {
+      const saved = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = saved || (prefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
 </head>
 <body>
   <div id="app">
-    <h1>Darts League</h1>
-    <!-- UI will be built here -->
+    <header>
+      <h1>🎯 Darts League</h1>
+      <button id="theme-toggle" aria-label="Toggle theme">
+        <span class="icon-light">☀️</span>
+        <span class="icon-dark">🌙</span>
+      </button>
+    </header>
+    
+    <main>
+      <section class="standings">
+        <h2>Standings</h2>
+        <div class="table-container">
+          <table id="standings-table">
+            <thead>
+              <tr>
+                <th class="col-rank">#</th>
+                <th class="col-player">Player</th>
+                <th class="col-num">P</th>
+                <th class="col-num">W</th>
+                <th class="col-num">L</th>
+                <th class="col-num highlight">Pts</th>
+                <th class="col-num hide-mobile">LF</th>
+                <th class="col-num hide-mobile">LA</th>
+                <th class="col-num">LD</th>
+                <th class="col-num hide-mobile">HC</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+        <p class="legend">
+          P=Played, W=Won, L=Lost, Pts=Points, LF=Legs For, LA=Legs Against, LD=Leg Diff, HC=High Checkout
+        </p>
+      </section>
+    </main>
   </div>
   <script src="js/app.js"></script>
 </body>

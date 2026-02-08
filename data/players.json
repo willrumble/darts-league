@@ -1,8 +1,0 @@
-{
-  "players": [
-    {"id": "will", "name": "Will"},
-    {"id": "cal", "name": "Cal"},
-    {"id": "tom", "name": "Tom"},
-    {"id": "alex", "name": "Alex"}
-  ]
-}
